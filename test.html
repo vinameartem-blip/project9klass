@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Математическая гармония Хабаровска</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* СБРОС И БАЗОВЫЕ СТИЛИ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #1a1a1a;
+            overflow: hidden;
+        }
+
+        /* --- ШАПКА САЙТА (КАК НА ФОТО) --- */
+        header {
+            background-color: #1c1c1d;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #2a2a2a;
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+
+        .header-left h1 {
+            color: #d1ab47; /* Золотой цвет как на фото */
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .header-left p {
+            color: #a3a3a3;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.4;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .badge {
+            border: 2px solid #d1ab47;
+            border-radius: 40px;
+            padding: 15px 30px;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 400;
+            text-transform: uppercase;
+            line-height: 1.3;
+        }
+
+        /* --- КАРТА И ВСПЫЛВАЮЩАЯ ПАНЕЛЬ --- */
+        .main-content {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background-color: #e5e3df; /* Цвет загрузки карты */
+        }
+
+        /* Боковая панель (выезжает справа) */
+        #sidebar {
+            position: absolute;
+            top: 0;
+            right: -450px; /* Спрятана за экраном */
+            width: 400px;
+            height: 100%;
+            background-color: #ffffff;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.5);
+            transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar.active {
+            right: 0; /* Выдвигается */
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            color: #333;
+            font-weight: 800;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 30px;
+            color: #999;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .sidebar-content {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar-content img {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            object-fit: cover;
+            background-color: #f0f0f0; /* Заглушка, если фото не загрузилось */
+            min-height: 200px;
+        }
+
+        .sidebar-content h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #1a1a1a;
+        }
+
+        .sidebar-content .address {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .sidebar-content p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #444;
+        }
+
+        /* Настройка внешнего вида кнопок на самой карте */
+        .leaflet-control-zoom a {
+            color: #333 !important;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <h1>МАТЕМАТИЧЕСКАЯ<br>ГАРМОНИЯ<br>ХАБАРОВСКА</h1>
+            <p>Исследование золотого сечения<br>и правила третей в архитектуре</p>
+        </div>
+        <div class="header-right">
+            <div class="badge">
+                ИНДИВИДУАЛЬНЫЙ<br>ИТОГОВЫЙ ПРОЕКТ<br>2026
+            </div>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div id="map"></div>
+        
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <h2>Детали объекта</h2>
+                <button class="close-btn" onclick="closeSidebar()">&times;</button>
+            </div>
+            <div class="sidebar-content">
+                <img id="sidebar-image" src="" alt="Фото здания">
+                <h3 id="sidebar-title">Название здания</h3>
+                <div class="address" id="sidebar-address">Адрес</div>
+                <p id="sidebar-desc">Здесь будет описание архитектурных особенностей здания, применение правила третей и золотого сечения.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация карты (центруем на Хабаровске)
+        const map = L.map('map', { zoomControl: false }).setView([48.474, 135.059], 14);
+
+        // Добавляем кнопки зума в правый нижний угол, чтобы не перекрывало панель
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Добавляем слой карты (используем бесплатный OpenStreetMap)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        // База данных зданий с проверенными точными координатами
+        const locations = [
+            {
+                id: 1,
+                name: "Спасо-Преображенский кафедральный собор",
+                address: "ул. Тургенева, 24",
+                lat: 48.466109,
+                lng: 135.067066,
+                image: "sobor.jpg",
+                desc: "В архитектуре этого величественного собора можно проследить принципы математической гармонии. Пропорции высоты куполов к основанию часто тяготеют к правилу золотого сечения."
+            },
+            {
+                id: 2,
+                name: "Штаб Восточного военного округа",
+                address: "ул. Серышева, 15",
+                lat: 48.484380,
+                lng: 135.059134,
+                image: "images/shtab.jpg",
+                desc: "Строгая монументальная архитектура здания. Ритм оконных проемов, колоннада и разделение фасада по горизонтали являются отличным примером применения правила третей в строительстве."
+            },
+            {
+                id: 3,
+                name: "Краевой музей им. Н.И. Гродекова",
+                address: "ул. Шевченко, 11",
+                lat: 48.473289,
+                lng: 135.051058,
+                image: "images/museum.jpg",
+                desc: "Историческое здание музея, где классические пропорции фасада создают ощущение баланса и устойчивости, что характерно для гармонических архитектурных рядов."
+            },
+            {
+                id: 4,
+                name: "Управление ДВЖД",
+                address: "ул. Муравьёва-Амурского, 20",
+                lat: 48.474233,
+                lng: 135.061748,
+                image: "images/dvzhd.jpg",
+                desc: "Один из ярчайших архитектурных памятников Хабаровска. Отношение центрального входа к боковым крыльям и высоты ярусов выверены по математическим законам красоты."
+            }
+        ];
+
+        // Получаем элементы боковой панели
+        const sidebar = document.getElementById('sidebar');
+        const sidebarImage = document.getElementById('sidebar-image');
+        const sidebarTitle = document.getElementById('sidebar-title');
+        const sidebarAddress = document.getElementById('sidebar-address');
+        const sidebarDesc = document.getElementById('sidebar-desc');
+
+        // Создаем золотую иконку для маркера (под стиль сайта)
+        const customIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="background-color: #d1ab47; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        // Расставляем метки на карте
+        locations.forEach(loc => {
+            const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map);
+            
+            // Обработчик нажатия на метку
+            marker.on('click', () => {
+                // Заполняем панель данными
+                sidebarImage.src = loc.image;
+                sidebarTitle.textContent = loc.name;
+                sidebarAddress.textContent = loc.address;
+                sidebarDesc.textContent = loc.desc;
+                
+                // Плавно выдвигаем панель
+                sidebar.classList.add('active');
+                
+                // Центрируем карту на выбранном объекте с небольшим сдвигом влево, 
+                // чтобы панель не перекрывала метку
+                map.setView([loc.lat, loc.lng], 16, { animate: true });
+            });
+        });
+
+        // Функция закрытия панели
+        function closeSidebar() {
+            sidebar.classList.remove('active');
+        }
+
+        // Закрываем панель при клике на любую свободную область карты
+        map.on('click', () => {
+            closeSidebar();
+        });
+
+    </script>
+</body>
+</html>
